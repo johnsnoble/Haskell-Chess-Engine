@@ -120,6 +120,18 @@ generateMove' (Taken (pl,t) pos) st@(pl',_,cs)
         emptyAt :: Pos -> Bool
         emptyAt pos = (cellAt pos st == Empty pos)
 
+isStalemate :: State -> Bool
+isStalemate state@(pl,_,cells)
+    = isStalemate' cells'
+    where
+        cells' = concat cells
+        isStalemate' :: [Cell] -> Bool
+        isStalemate' [] = True
+        isStalemate' ((Empty _):cs) = isStalemate' cs
+        isStalemate' (c@(Taken _ pos):cs)
+            | generateMove pos state == [] = isStalemate' cs
+            | otherwise = False
+
 getScore :: Cell -> Int
 getScore (Empty _) = 0
 getScore (Taken (_,P) _) = 1
@@ -188,14 +200,22 @@ blank
     = (L,0,[[Empty (i,j)|j<-[0..7]]|i<-[0..7]])
 
 queenGame :: State
-queenGame = placeCell (placeCell (placeCell blank (Taken (L,Q) (3,4))) (Taken (D,R) (3,1))) (Taken (L,H) (7,4))
+queenGame = createGame [Taken (L,Q) (3,4),Taken (D,R) (3,1),Taken (L,H) (7,4)] blank
 
-game :: State
-game = placeCell (placeCell (placeCell blank (Taken (L,P) (6,2))) (Taken (D,H) (5,3))) (Taken (L,P) (5,1))
+pawnGame :: State
+pawnGame = createGame [Taken (L,P) (6,2),Taken (D,H) (5,3),Taken (L,P) (5,1)] blank
 
-placeCell :: State -> Cell -> State
-placeCell state cell@(Empty pos) = placePiece state cell pos
-placeCell state cell@(Taken piece pos) = placePiece state cell pos
+kingGame :: State
+kingGame = createGame [Taken (L,K) (7,7),Taken (D,Q) (5,6)] blank
+
+createGame :: [Cell] -> State -> State
+createGame [] state = state
+createGame (c:cs) state
+    = placeCell c (createGame cs state)
+
+placeCell :: Cell -> State -> State
+placeCell cell@(Empty pos) state = placePiece state cell pos
+placeCell cell@(Taken piece pos) state = placePiece state cell pos
 
 placePiece :: State -> Cell -> Pos -> State
 placePiece state@(pl,score,cs) cell pos
