@@ -34,7 +34,7 @@ instance Show Cell where
 
 type Pos = (Int,Int)
 type Direction = (Int,Int)
-type State = (Player,[[Cell]])
+type State = (Player,Int,[[Cell]])
 
 nextPlayer :: Player -> Player
 nextPlayer L = D
@@ -61,7 +61,7 @@ generateMove pos state = generateMove' (cellAt pos state) state
 
 generateMove' :: Cell -> State -> [Pos]
 generateMove' (Empty pos) _ = []
-generateMove' (Taken (pl,t) pos) st@(pl',cs)
+generateMove' (Taken (pl,t) pos) st@(pl',_,cs)
     | pl /= pl' = []
     | t == R = rockMove pos
     | t == B = bishopMove pos
@@ -120,15 +120,21 @@ generateMove' (Taken (pl,t) pos) st@(pl',cs)
         emptyAt :: Pos -> Bool
         emptyAt pos = (cellAt pos st == Empty pos)
 
-getMove :: Pos -> Player -> Direction -> [Pos]
-getMove (x,y) pl (dx,dy)
-    = undefined
+getScore :: Cell -> Int
+getScore (Empty _) = 0
+getScore (Taken (_,P) _) = 1
+getScore (Taken (_,H) _) = 3
+getScore (Taken (_,B) _) = 3
+getScore (Taken (_,R) _) = 5
+getScore (Taken (_,Q) _) = 9
+getScore (Taken (_,K) _) = 99
 
 move :: Pos -> Pos -> State -> State
-move pos pos' state
-    = (nextPlayer (fst state), cs')
+move pos pos' state@(pl,score,_)
+    = (nextPlayer pl,-score',cs')
     where
         Taken piece _ = cellAt pos state
+        score' = score + getScore (cellAt pos' state)
         cs' = [[t (i,j)| j <- [0..7]] | i <- [0..7]]
         t :: Pos -> Cell
         t tPos
@@ -144,18 +150,19 @@ inBoard (x,y)
         inRange t = (t >= 0) && (t < 8)
 
 cellAt :: Pos -> State -> Cell
-cellAt (x,y) (_,cs)
+cellAt (x,y) (_,_,cs)
     = cs!!x!!y
 
 printBoard :: State -> IO ()
-printBoard (p,[])
+printBoard (p,s,[])
     = do
         putStrLn (replicate 41 '-')
         putStrLn ((show p) ++ " to play")
-printBoard (p,b:bs)
+        putStrLn ((show p) ++ ": " ++ (show s))
+printBoard (p,s,b:bs)
     = do
         printRow b
-        printBoard (p,bs)
+        printBoard (p,s,bs)
         where
             printRow :: [Cell] -> IO ()
             printRow row
@@ -167,7 +174,7 @@ printBoard (p,b:bs)
 
 newGame :: State
 newGame
-    = (L,board)
+    = (L,0,board)
     where
         bL = [[Taken (D,R) (0,0), Taken (D,H) (0,1), Taken (D,B) (0,2), Taken (D,Q) (0,3), Taken (D,K) (0,4), Taken (D,B) (0,5), Taken (D,H) (0,6), Taken (D,R) (0,7)]]
         bP = [[Taken (D,P) (1,i)|i<-[0..7]]]
@@ -178,7 +185,7 @@ newGame
 
 blank :: State
 blank
-    = (L,[[Empty (i,j)|j<-[0..7]]|i<-[0..7]])
+    = (L,0,[[Empty (i,j)|j<-[0..7]]|i<-[0..7]])
 
 queenGame :: State
 queenGame = placeCell (placeCell (placeCell blank (Taken (L,Q) (3,4))) (Taken (D,R) (3,1))) (Taken (L,H) (7,4))
@@ -187,14 +194,15 @@ game :: State
 game = placeCell (placeCell (placeCell blank (Taken (L,P) (6,2))) (Taken (D,H) (5,3))) (Taken (L,P) (5,1))
 
 placeCell :: State -> Cell -> State
-placeCell state@(pl,cs) cell@(Empty pos) = placePiece state cell pos
-placeCell state@(pl,cs) cell@(Taken piece pos) = placePiece state cell pos
+placeCell state cell@(Empty pos) = placePiece state cell pos
+placeCell state cell@(Taken piece pos) = placePiece state cell pos
 
 placePiece :: State -> Cell -> Pos -> State
-placePiece state@(pl,cs) cell pos
-    = (pl,cs')
+placePiece state@(pl,score,cs) cell pos
+    = (pl,score',cs')
     where
         cs' = [[t (i,j)| j <- [0..7]] | i <- [0..7]]
+        score' = score + (sameTeam (Taken (pl,P) (8,8)) cell)*(getScore cell)
         t :: Pos -> Cell
         t pos'
             | pos' == pos = cell
