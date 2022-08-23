@@ -154,6 +154,9 @@ move pos pos' state@(pl,score,_)
             | tPos == pos' = Taken piece pos' --Piece moved too
             | otherwise = cellAt tPos state --keep the same
 
+isValid :: Pos -> Pos -> State -> Bool
+isValid pos pos' state = elem pos' (generateMove pos state)
+
 inBoard :: Pos -> Bool
 inBoard (x,y)
     = inRange x && inRange y
@@ -165,24 +168,32 @@ cellAt :: Pos -> State -> Cell
 cellAt (x,y) (_,_,cs)
     = cs!!x!!y
 
+getHeuristic :: State -> Int
+getHeuristic (_,score,_) = score
+
 printBoard :: State -> IO ()
-printBoard (p,s,[])
-    = do
-        putStrLn (replicate 41 '-')
-        putStrLn ((show p) ++ " to play")
-        putStrLn ((show p) ++ ": " ++ (show s))
-printBoard (p,s,b:bs)
-    = do
-        printRow b
-        printBoard (p,s,bs)
-        where
-            printRow :: [Cell] -> IO ()
-            printRow row
-                = do
-                    putStrLn (replicate 41 '-')
-                    putStrLn ("| " ++ pieces ++ " |")
-                where
-                    pieces = intercalate " | " (map show row)
+printBoard (pl,s,cs)
+    = print cs'
+    where
+        cs' = zip [1..8] cs
+        print :: [(Int,[Cell])] -> IO ()
+        print [] 
+            = do
+                putStrLn ("  " ++ (replicate 41 '-'))
+                putStrLn ("    " ++(intercalate "    " (map show [1..8])))
+                putStrLn ((show pl) ++ " to play")
+                putStrLn ((show pl) ++ ": " ++ (show s))
+        print ((n,b):bs)
+            = do
+                printRow n b
+                print bs
+        printRow :: Int -> [Cell] -> IO ()
+        printRow n row
+            = do
+                putStrLn ("  " ++ (replicate 41 '-'))
+                putStrLn ((show n) ++ " | " ++ pieces ++ " |")
+            where
+                pieces = intercalate " | " (map show row)
 
 newGame :: State
 newGame
