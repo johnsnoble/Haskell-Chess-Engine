@@ -1,16 +1,46 @@
 module Main where
 
 import Chess
+import Bot
 import Data.Char
 
 main :: IO ()
 main
     = do
-        winner <- game newGame
+        putStrLn ("press 1 to play the bot")
+        putStrLn ("press 2 to play against friend")
+        winner <- menu
         putStrLn ("\n" ++ (show winner) ++ " Won!")
 
-game :: State -> IO Player
-game state@(pl,score,_)
+menu :: IO Player
+menu
+    = do
+        c <- getChar
+        if (c == '1') then (playerMove newGame)
+        else (game' newGame)
+
+playerMove :: State -> IO Player
+playerMove state
+    = do
+        if (checkWinner state)
+            then return (getWinner state)
+            else do
+                printBoard state
+                state' <- userMove state
+                botMove state'
+
+botMove :: State -> IO Player
+botMove state
+    = do
+        if (checkWinner state)
+            then return (getWinner state)
+            else do
+                printBoard state
+                let state' = computerMove state
+                playerMove state'
+
+game' :: State -> IO Player
+game' state@(pl,score,_)
     = do
         if (score > 50)
             then (return pl)
@@ -22,7 +52,7 @@ game state@(pl,score,_)
                         putStrLn ""
                         printBoard state
                         state' <- userMove state
-                        game state'
+                        game' state'
 
 userMove :: State -> IO State
 userMove state
