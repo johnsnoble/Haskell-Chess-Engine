@@ -35,6 +35,7 @@ instance Show Cell where
 type Pos = (Int,Int)
 type Direction = (Int,Int)
 type State = (Player,Int,[[Cell]])
+type Move = (Pos,Pos)
 
 nextPlayer :: Player -> Player
 nextPlayer L = D
