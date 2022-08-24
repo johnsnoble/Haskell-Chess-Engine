@@ -59,11 +59,11 @@ userMove state
     = do
         start <- userInput "Pick Piece to move: "
         end <- userInput "Input Destination: "
-        if (isValid start end state)
-            then return (move start end state)
+        if (isValid (start,end) state)
+            then return (move (start,end) state)
             else userMove state
 
-userInput :: [Char] -> IO (Int,Int)
+userInput :: [Char] -> IO Pos
 userInput str
     = do
         putStrLn str

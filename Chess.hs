@@ -142,8 +142,8 @@ getScore (Taken (_,R) _) = 5
 getScore (Taken (_,Q) _) = 9
 getScore (Taken (_,K) _) = 99
 
-move :: Pos -> Pos -> State -> State
-move pos pos' state@(pl,score,_)
+move' :: Pos -> Pos -> State -> State
+move' pos pos' state@(pl,score,_)
     = (nextPlayer pl,-score',cs')
     where
         Taken piece _ = cellAt pos state
@@ -155,8 +155,21 @@ move pos pos' state@(pl,score,_)
             | tPos == pos' = Taken piece pos' --Piece moved too
             | otherwise = cellAt tPos state --keep the same
 
-isValid :: Pos -> Pos -> State -> Bool
-isValid pos pos' state = elem pos' (generateMove pos state)
+move :: Move -> State -> State
+move (pos,pos') state@(pl,score,_)
+    = (nextPlayer pl,-score',cs')
+    where
+        Taken piece _ = cellAt pos state
+        score' = score + getScore (cellAt pos' state)
+        cs' = [[t (i,j)| j <- [0..7]] | i <- [0..7]]
+        t :: Pos -> Cell
+        t tPos
+            | tPos == pos = Empty pos --Piece has moved
+            | tPos == pos' = Taken piece pos' --Piece moved too
+            | otherwise = cellAt tPos state --keep the same
+
+isValid :: Move -> State -> Bool
+isValid (pos,pos') state = elem pos' (generateMove pos state)
 
 inBoard :: Pos -> Bool
 inBoard (x,y)
