@@ -49,7 +49,7 @@ computerMove :: State -> State
 computerMove state
     = move start end state
     where
-       (_,(start,end)) = bestMs state 3 --Must be an odd number
+       (_,(start,end)) = bestMove state 3 --Must be an odd number
 
 checkWinner :: State -> Bool
 checkWinner (_,s,_) = (abs s) > 50

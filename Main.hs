@@ -4,37 +4,40 @@ import Chess
 import Bot
 import Data.Char
 
-{-- main :: IO ()
-main
-    = do
-        winner <- game newGame
-        putStrLn ("\n" ++ (show winner) ++ " Won!") --}
-
 main :: IO ()
 main
     = do
-        winner <- game1 newGame
-        putStrLn ("\n" ++ (show winner) ++ " Won!") 
+        putStrLn ("press 1 to play the bot")
+        putStrLn ("press 2 to play against friend")
+        winner <- menu
+        putStrLn ("\n" ++ (show winner) ++ " Won!")
 
-game1 :: State -> IO Player
-game1 state
+menu :: IO Player
+menu
+    = do
+        c <- getChar
+        if (c == '1') then (playerMove newGame)
+        else (game' newGame)
+
+playerMove :: State -> IO Player
+playerMove state
     = do
         if (checkWinner state)
             then return (getWinner state)
             else do
                 printBoard state
                 state' <- userMove state
-                game2 state'
+                botMove state'
 
-game2 :: State -> IO Player
-game2 state
+botMove :: State -> IO Player
+botMove state
     = do
         if (checkWinner state)
             then return (getWinner state)
             else do
                 printBoard state
                 let state' = computerMove state
-                game1 state'
+                playerMove state'
 
 game' :: State -> IO Player
 game' state@(pl,score,_)
