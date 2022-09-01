@@ -71,33 +71,61 @@ generateMove' (Taken (pl,t) pos) st@(pl',_,cs)
     | t == H = horseMove pos
     | t == P = pawnMove pos pl
     where
-        genericMove :: Pos -> [Direction] -> Int -> State -> [Pos]
-        genericMove pos dirs depth state
-            = concat [genericMove' pos i depth state |i<-dirs]
+        genericMove :: Pos -> [Direction] -> Int -> [Pos]
+        genericMove pos dirs depth
+            = concat [genericMove' pos i depth|i<-dirs]
             where
-                genericMove' :: Pos -> Direction -> Int -> State -> [Pos]
-                genericMove' p d n s
+                genericMove' :: Pos -> Direction -> Int -> [Pos]
+                genericMove' p d n
                     | n == 0 = []
                     | inBoard p' == False = []
                     | compare == 1 = []
                     | compare == -1 = [p']
-                    | otherwise = p' : (genericMove' p' d (n-1) s)
+                    | otherwise = p' : (genericMove' p' d (n-1))
                     where
                         p' = add p d
-                        c = cellAt p' state
+                        c = cellAt p' st
                         compare = sameTeam base c
-                base = cellAt pos state
-
+                base = cellAt pos st
+        isExist :: Pos -> [Direction] -> Int -> [Piece] -> Bool
+        isExist pos dirs depth pcs
+            = or [isExist' pos i depth|i<-dirs]
+            where
+                isExist' :: Pos -> Direction -> Int -> Bool
+                isExist' p d n
+                    | n == 0 = False
+                    | inBoard p' == False = False
+                    | cellAt p' st == (Empty p') = isExist' p' d (n-1)
+                    | elem pc pcs = True
+                    | otherwise = False
+                    where
+                        p' = add p d
+                        (Taken pc _) = cellAt p' st
+        isSafe :: Player -> Pos -> Bool
+        isSafe pl pos
+            | isExist pos (diags++norms) 1 [(pl',K)] = False
+            | (pl == L) && isExist pos [(-1,-1),(-1,1)] 1 [(D,P)] = False
+            | (pl == D) && isExist pos [(1,-1),(1,1)] 1 [(L,P)] = False
+            | isExist pos diags 8 [(pl',B),(pl',Q)] = False
+            | isExist pos norms 8 [(pl',R),(pl',Q)] = False
+            | isExist pos horse 1 [(pl',H)] = False
+            | otherwise = True
+            where
+                pl' = nextPlayer pl
         rockMove :: Pos  -> [Pos]
-        rockMove pos = genericMove pos norms 8 st
+        rockMove pos = genericMove pos norms 8
         bishopMove :: Pos ->  [Pos]
-        bishopMove pos = genericMove pos diags 8 st
+        bishopMove pos = genericMove pos diags 8
         queenMove :: Pos ->  [Pos]
-        queenMove pos = genericMove pos (norms++diags) 8 st
+        queenMove pos = genericMove pos (norms++diags) 8
         kingMove :: Pos ->  [Pos]
-        kingMove pos = genericMove pos (norms++diags) 1 st
+        kingMove pos
+            = [m|m<-ms,isSafe pl m]
+            where
+                ms = genericMove pos (norms++diags) 1
+                (Taken (pl,_) _) = cellAt pos st
         horseMove :: Pos ->  [Pos]
-        horseMove pos = genericMove pos horse 1 st
+        horseMove pos = genericMove pos horse 1
         pawnMove :: Pos -> Player -> [Pos]
         pawnMove pos@(x,y) L
             | x == 6 && emptyAt (4,y) && emptyAt(5,y) = f [(4,y),(5,y)]
@@ -171,6 +199,9 @@ move (pos,pos') state@(pl,score,_)
 isValid :: Move -> State -> Bool
 isValid (pos,pos') state = elem pos' (generateMove pos state)
 
+skipTurn :: State -> State
+skipTurn (pl,s,cs) = (nextPlayer pl,-s,cs)
+
 inBoard :: Pos -> Bool
 inBoard (x,y)
     = inRange x && inRange y
@@ -232,6 +263,19 @@ pawnGame = createGame [Taken (L,P) (6,2),Taken (D,H) (5,3),Taken (L,P) (5,1)] bl
 
 kingGame :: State
 kingGame = createGame [Taken (L,K) (7,7),Taken (D,Q) (5,6)] blank
+
+e1 :: State
+e1 = createGame [Taken (L,K) (1,0),Taken (L,P) (1,1),Taken (L,P) (1,2),Taken (L,H) (0,3),Taken (D,P) (1,4),Taken (D,K) (2,3),Taken (L,R) (3,4),Taken (L,P) (4,3),Taken (L,R) (5,6),Taken (L,B) (6,7)] blank
+
+e1a :: State
+e1a = createGame [Taken (L,K) (1,0),Taken (L,P) (1,1),Taken (D,K) (1,2),Taken (L,H) (0,3),Taken (D,P) (1,4),Taken (L,R) (3,4),Taken (L,P) (4,3),Taken (L,R) (1,6),Taken (L,B) (6,7)] blank
+
+e2 :: State
+e2 = skipTurn (createGame [Taken (D,K) (0,6),Taken (D,P) (1,0),Taken (D,P) (1,5),Taken (D,P) (1,6),Taken (D,P) (1,7),Taken (L,K) (3,6),Taken (L,Q) (4,3),Taken (L,P) (4,4),Taken (D,Q) (5,7),Taken (L,P) (6,0),Taken (L,P) (6,1),Taken (L,P) (6,2),Taken (L,R) (7,0),Taken (L,B) (7,2),Taken (L,R) (7,5)] blank)
+
+e2a = skipTurn (createGame [Taken (D,K) (0,6),Taken (D,P) (1,0),Taken (D,P) (1,5),Taken (D,P) (1,6),Taken (D,P) (2,7),Taken (L,K) (4,5),Taken (L,Q) (4,3),Taken (L,P) (4,4),Taken (D,Q) (5,7),Taken (L,P) (6,0),Taken (L,P) (6,1),Taken (L,P) (6,2),Taken (L,R) (7,0),Taken (L,B) (7,2),Taken (L,R) (7,5)] blank)
+
+e2b = createGame [Taken (D,K) (0,6),Taken (D,P) (1,0),Taken (D,P) (1,5),Taken (D,P) (3,6),Taken (D,P) (2,7),Taken (L,K) (4,5),Taken (L,Q) (4,3),Taken (L,P) (4,4),Taken (D,Q) (5,7),Taken (L,P) (6,0),Taken (L,P) (6,1),Taken (L,P) (6,2),Taken (L,R) (7,0),Taken (L,B) (7,2),Taken (L,R) (7,5)] blank
 
 createGame :: [Cell] -> State -> State
 createGame [] state = state
