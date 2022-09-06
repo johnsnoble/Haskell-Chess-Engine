@@ -2,6 +2,7 @@ module Main where
 
 import Chess
 import Bot
+import Global
 import Data.Char
 
 main :: IO ()
