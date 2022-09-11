@@ -2,10 +2,14 @@ module Board where
 
 import Data.Word
 import Data.Array.Unboxed
-import Global hiding (State)
+import Global
 
 type BBoard = Word64
 type Cell = Word8
+type Pos = Int
+type Direction = Int
+
+-- Cell colour {1}, type {3} 
 
 rows,cols :: UArray Int BBoard
 
@@ -44,13 +48,25 @@ data State = State {
     player :: Player
 }
 
+inBoard :: Pos -> Bool
+inBoard pos = (pos < 64) && (pos >= 0)
+
+toType :: (Bool,Bool,Bool) -> Type
+toType (b1,b2,b3)
+    | and [b1,b2,b3] = Q
+    | b1 && b2 = R
+    | b1 && b3 = B
+    | b2 && b3 = K
+    | b2 = H
+    | otherwise = P
+
 emptyState :: State
 emptyState = State {white = 0, black = 0, b1 = 0, b2 = 0, b3 = 0, score = -1, player = L}
 
 {-newGame :: state
 newGame = State {
-    white = 0x000000000000FFFF,
-    black = 0xFFFF000000000000,
+    white = 0xFFFF000000000000,
+    black = 0x000000000000FFFF,
     b1 = 0xAD000000000000AD,
     b2 = 0xDB000000000000DB,
     b3 = 0x3CFF00000000FF3C,
