@@ -11,6 +11,7 @@ type BBoard = Word64
 type Cell = Word8
 type Pos = Int
 type Direction = Int
+type State = (Player,Int,UArray Int BBoard)
 
 -- Cell colour {1}, type {3} 
 
@@ -26,9 +27,6 @@ rows = listArray (0,7) [
     0xFF000000000000,
     0xFF00000000000000 ]
 
-data State = State {
-    white, black :: BBoard,
-    b1, b2, b3 :: BBoard,
     {-        b1 b2 b3
         Pawn   0  0  1
         King   0  1  1
@@ -37,9 +35,6 @@ data State = State {
         Rock   1  1  0
         Queen  1  1  1
     -}
-    score :: Int,
-    player :: Player
-}
 
 inBoard :: Pos -> Bool
 inBoard pos = (pos < 64) && (pos >= 0)
@@ -54,14 +49,21 @@ connected p1 p2
         col1 = mod p1 8
         col2 = mod p2 8
 
-toType :: (Bool,Bool,Bool) -> Type
-toType (b1,b2,b3)
-    | and [b1,b2,b3] = Q
-    | b1 && b2 = R
-    | b1 && b3 = B
-    | b2 && b3 = K
-    | b2 = H
-    | otherwise = P
+other :: Player -> Player
+other L = D
+other D = L
+
+score :: State -> Int
+score (_,x,_) = x
+
+setScore :: Int -> State -> State
+setScore n (pl,sc,bb) = (pl,n,bb)
+
+player :: State -> Player
+player (x,_,_) = x
+
+checkWinner :: State -> Bool
+checkWinner st = abs (score st) > 50
 
 printBB :: BBoard -> IO ()
 printBB b = do
@@ -85,6 +87,8 @@ printSt st = do
         putStrLn $ replicate 41 '-'
         println i
     putStrLn $ replicate 41 '-'
+    putStrLn $ (show (player st)) ++ " to play"
+    putStrLn $ (show (player st)) ++ ": " ++ (show (score st))
     where
         println :: Int -> IO ()
         println n = do
@@ -95,23 +99,31 @@ printSt st = do
 
 showCell :: Cell -> [Char]
 showCell cell
-    | cell == 0 = "  "
-    | piece == 1 = [pl,'P']
-    | piece == 2 = [pl,'H']
-    | piece == 3 = [pl,'K']
-    | piece == 5 = [pl,'B']
-    | piece == 6 = [pl,'R']
-    | piece == 7 = [pl,'Q']
+    | testBit cell 0 = 'W':(show piece)
+    | testBit cell 1 = 'B':(show piece)
     | otherwise = "  "
     where
-        pl = if testBit cell 3
-            then 'W'
-            else 'B'
-        piece = cell .&. 0x7
+    piece = withType cell (P,H,B,R,Q,K)
 
-cellAt :: State -> Pos -> Cell
-cellAt st pos
-    =  (f (at (white st)) 3) .|. ((f (at (b1 st)) 2) .|. ((f (at (b2 st)) 1) .|. (at (b3 st))))
+withType :: Cell -> (a,a,a,a,a,a) -> a
+withType cell (p,h,b,r,q,k) = piece
+    where
+        code = unsafeShiftR cell 2
+        piece = if testBit code 0
+            then if testBit code 1
+                then if testBit code 2
+                    then q
+                    else r
+                else b
+            else if testBit code 1
+                then if testBit code 2
+                    then k
+                    else h
+                else p
+
+cellAt' :: State -> Pos -> Cell
+cellAt' (_,_,st) pos
+    = foldl (.|.) 0 [at (st ! 0),f (at (st ! 1)) 1,f (at (st ! 2)) 2,f (at (st ! 3)) 3,f (at (st ! 4)) 4]
     where
         toInt True = 1
         toInt False = 0
@@ -119,59 +131,52 @@ cellAt st pos
         at :: BBoard -> Word8
         at b = toInt $ testBit b pos
 
-cellScore :: Bool -> Cell -> Int
+cellAt :: State -> Pos -> Cell
+cellAt (_,_,st) pos
+    = foldl (.) id [flip setBit i|i<-[0..4],testBit (st!i) pos] 0
+
+cellScore :: Player -> Cell -> Int
 cellScore pl cell
-    = opp*(pieceVal piece)
+    | not (isBl' || isWh') = 0
+    | otherwise = opp*val
     where
-        piece = cell .&. 0x7
-        opp = if pl == testBit cell 3 then 1 else -1
-        pieceVal :: Cell -> Int
-        pieceVal n
-            | n == 1 = 1
-            | n == 2 = 3
-            | n == 3 = 99
-            | n == 5 = 3
-            | n == 6 = 5
-            | n == 7 = 9
-            | otherwise = 0
+        opp = if isWh == isWh' then 1 else -1
+        val = withType cell (1,3,3,5,9,99)
+        isWh = pl == L
+        isWh' = testBit cell 0
+        isBl' = testBit cell 1
 
 place :: Cell -> Pos -> State -> State
-place cell pos st
-    | cell == 0 = pack cleared 
-    | otherwise = pack (bl:[f i|i<-[0..3]])
+place cell pos (pl,sc,bb)
+    = (pl,sc,bb')
     where
-        ss = [black st,white st,b1 st,b2 st,b3 st]
-        cleared = [clearBit i pos|i<-ss]
+        bb' = listArray (0,4) [f i|i<-[0..4]]
         f :: Int -> BBoard
-        f n
-            | testBit cell (3-n) = setBit c pos
-            | otherwise = c
-            where
-                c = cleared !! (n+1)
-        bl = if testBit cell 3 then head cleared else setBit (head cleared) pos
-        pl = testBit cell 3
-        pack :: [BBoard] -> State
-        pack [bl,wh,b1,b2,b3] = State {white = wh, black = bl, b1 = b1, b2 = b2, b3 = b3,score = (score st) + cellScore pl cell, player = player st}
+        f x
+            | testBit cell x = setBit (bb!x) pos
+            | otherwise = clearBit (bb!x) pos
+
+evalScore :: State -> Int
+evalScore st = foldl1 (+) [cellScore (player st) (cellAt st i)|i<-[0..63]]
 
 create :: [(Cell,Pos)] -> State
-create x = f emptyState
+create x = setScore (evalScore st) st
     where
         fs = [place c p|(c,p)<-x]
         f = foldl1 (.) fs 
+        st = f emptyState
 
 emptyState :: State
-emptyState = State {white = 0, black = 0, b1 = 0, b2 = 0, b3 = 0, score = -1, player = L}
+emptyState = (L,0,listArray (0,4) [0,0,0,0,0])
 
 newGame :: State
-newGame = State {
-    white = 0xFFFF,
-    black = 0xFFFF000000000000,
-    b1 = 0xB5000000000000B5, --B,R,Q
-    b2 = 0xDB000000000000DB, --H,K,R,Q
-    b3 = 0x3CFF00000000FF3C, --P,K,B,Q
-    score = 0,
-    player = L
-}
+newGame = (L,0, listArray (0,4) [
+    0xFFFF, --White
+    0xFFFF000000000000, --Black
+    0xB5000000000000B5, --B,R,Q
+    0xDB000000000000DB, --H,K,R,Q
+    0x3CFF00000000FF3C ])--P,K,B,Q
+
 
 t1 :: State
-t1 = create $ zip [3,1,1,1,1,15,9,11,7,9,9,9,14,13,14] [57,55,50,40,33,28,27,26,16,15,14,13,7,5,2]
+t1 = create $ zip [26,18,18,18,18,29,17,25,30,17,17,17,13,21,13] [57,55,50,40,33,28,27,26,16,15,14,13,7,5,2]
