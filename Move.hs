@@ -60,7 +60,7 @@ generateMoves st@(pl,_,bb) pos
         bishopMove = genericMove (4,diags) 8
         queenMove = genericMove (8,kqs) 8
         horseMove = genericMove (8,horses) 1
-        kingMove = [p|p<-ms,isSafe p]--f reach ms
+        kingMove = [p|p<-ms,isSafe st isWh p]--f reach ms
             where
                 ms = genericMove (8,kqs) 1
                 reach = [pos+(kqs ! d)|d<-[0..7]]
@@ -88,6 +88,18 @@ generateMoves st@(pl,_,bb) pos
                 addAttack :: [Pos] -> [Pos]
                 addAttack = (attack (pos+pl-1)).(attack (pos+pl+1))
                 pl = if isWh then 8 else -8
+
+isSafe :: State -> Bool -> Pos -> Bool
+isSafe st isWh pos
+    | isExist pos (8,kqs) 1 [colour .|. 24] = False
+    | isExist pos (2,pawn) 1 [colour .|. 16] = False
+    | isExist pos (4,diags) 8 [colour .|. 20, colour .|. 28] = False
+    | isExist pos (4,norms) 8 [colour .|. 12, colour .|. 28] = False
+    | isExist pos (8,horses) 1 [colour .|. 8] = False
+    | otherwise = True
+    where
+        colour = if isWh then 0x2 else 0x1
+        pawn = if isWh then listArray (0,2) [7,9] else listArray (0,2) [-7,-9]
         isExist :: Pos -> (Int,UArray Int Direction) -> Int -> [Cell] -> Bool
         isExist pos (l,dirs) depth pcs
             = or [isExist' pos (dirs ! i) depth|i<-[0..l-1]]
@@ -103,17 +115,6 @@ generateMoves st@(pl,_,bb) pos
                         p' = p + d
                         cell = cellAt st p'
                         empty = not ((testBit cell 0) || (testBit cell 1))
-        isSafe :: Pos -> Bool
-        isSafe pos
-            | isExist pos (8,kqs) 1 [colour .|. 24] = False
-            | isExist pos (2,pawn) 1 [colour .|. 16] = False
-            | isExist pos (4,diags) 8 [colour .|. 20, colour .|. 28] = False
-            | isExist pos (4,norms) 8 [colour .|. 12, colour .|. 28] = False
-            | isExist pos (8,horses) 1 [colour .|. 8] = False
-            | otherwise = True
-            where
-                colour = if isWh then 0x2 else 0x1
-                pawn = if isWh then listArray (0,2) [7,9] else listArray (0,2) [-7,-9]
 
 {-
 move : 11-9 {row} ,8-6 {col},5-3 {row'},2-0 {col'}
