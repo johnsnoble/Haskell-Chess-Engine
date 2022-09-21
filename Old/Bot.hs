@@ -1,6 +1,7 @@
 module Bot where
 
 import Chess
+import Global
 
 getMoves :: State -> [Move]
 getMoves state@(pl,_,cells)
