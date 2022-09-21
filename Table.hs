@@ -14,8 +14,10 @@ import Move
 -- type TransTable = STUArray s Int Int
 
 av,bv,nullv :: Int
-av = 373
-bv = 5003
+--av = 373
+--bv = 5003
+av = 2
+bv = 5
 nullv = 255
 
 powers :: UArray Int Int
@@ -39,7 +41,7 @@ hashState st = foldl1 modAdd [hash i|i<-[0..2]]
         hash :: Int -> Int
         hash n = foldl1 modAdd [(pws!i)*(bbPws!n)|i<-[0..63],testBit (bbs!(n+2)) i]
 
-initStateTable :: Int -> ST s (STArray s Int (STUArray s Int Word64))
+initStateTable :: Int -> ST s (STArray s Int (STUArray s Int BBoard))
 initStateTable size
     = do
         w <- newArray (0,size-1) 0
@@ -60,11 +62,50 @@ initTransTable size
         arr <- newArray (0,size-1) nullv
         return arr
 
-checkTable :: State -> ST s (STUArray s Int Int) -> ST s Bool
-checkTable st table = undefined
---    = do
-  --      let hashed = hashState st (av,bv,powers av bv)
-        -- check if it exists in table
+writeTT :: State -> Int -> Int -> STUArray s Int Int -> ST s ()
+writeTT st ind n table = writeArray table ind n
+
+writeSTT :: State -> Int -> STArray s Int (STUArray s Int BBoard) -> ST s ()
+writeSTT (_,_,bbs) ind table
+    = do
+        bbPtr <- readArray table ind
+        forM_ [0..4] $ \i -> do
+            writeArray bbPtr i (bbs!i)
+
+write :: State -> Int -> STUArray s Int Int -> STArray s Int (STUArray s Int BBoard) -> ST s ()
+write st n tt stt = do
+    let hashed = hashState st
+    writeTT st hashed n tt
+    writeSTT st hashed stt
+
+checkTable :: State -> STUArray s Int Int -> ST s (Maybe Int)
+checkTable st table
+    = do
+        let hashed = hashState st
+        val <- readArray table hashed
+        if (val == nullv)
+            then return Nothing
+            else return (Just val)
+
+testTT :: ST s (STUArray s Int Int)
+testTT = do
+    table <- initTransTable bv
+    let ind = hashState t1
+    writeTT t1 ind 6 table
+    return table
+
+testSTT :: ST s (STArray s Int (STUArray s Int BBoard))
+testSTT = do
+    table <- initStateTable bv
+    let ind = hashState t1
+    writeSTT t1 ind table
+    return table
+
+getSTT :: Int -> ST s (STUArray s Int BBoard)
+getSTT ind = do
+    table <- testSTT
+    ret <- readArray table ind
+    return ret
 
 {-indexOf :: State -> Int
 indexOf = undefined
