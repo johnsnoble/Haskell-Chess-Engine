@@ -18,46 +18,26 @@ av = 373
 bv = 5003
 nullv = 255
 
-powers :: Int -> Int -> UArray Int Int
-powers a b = listArray (0,63) (f 64 [])
+powers :: UArray Int Int
+powers = listArray (0,63) (f 64 [])
     where
         f :: Int -> [Int] -> [Int]
-        f p [] = f (p-1) [mod a b]
+        f p [] = f (p-1) [mod av bv]
         f p xs@(x:_)
             | p == 0 = xs
-            | otherwise = f (p-1) ((mod (x*a) b):xs)
-
-stPowers :: ST s (STUArray s Int Int)
-stPowers = do
-    arr <- newArray (0,63) 0
-    writeArray arr 0 1
-    forM_ [1..63] $ \i -> do
-        prev <- readArray arr (i-1)
-        writeArray arr i (mod (prev*373) 5003)
-    return arr
-
-{- hashState :: State -> (Int,Int,UArray Int Int) -> Int
-hashState st (a,b,pws) = foldl1 f [hash i|i<-[0..2]]
-    where
-        f :: Int -> Int -> Int
-        f x y = mod (x + y) b
-        (_,_,bbs) = st
-        bbPws = take 3 $ iterate (flip unsafeShiftL 1) 1
-        hash :: Int -> Int
-        hash n = foldl1 f [(pws!i)*(bbPws!!n)|i<-[0..63],testBit (bbs!(n+2)) i] -}
+            | otherwise = f (p-1) ((mod (x*av) bv):xs)
 
 modAdd :: Int -> Int -> Int
 modAdd x y = mod (x + y) bv
 
-hashState :: STUArray s Int Int -> State -> ST s Int
-hashState pws st = do
-    -- must do everything imperatively to avoid taking out st monad and back in
-    return $ foldl1 modAdd [hash i|i<-[0..2]]
+hashState :: State -> Int
+hashState st = foldl1 modAdd [hash i|i<-[0..2]]
     where
+        pws = powers
         (_,_,bbs) = st
-        bbPws = take 3 $ iterate (flip unsafeShiftL 1) 1
+        bbPws = listArray (0,2) [1,2,4] :: UArray Int Int
         hash :: Int -> Int
-        hash n = foldl1 modAdd [(pws!i)*(bbPws!!n)|i<-[0..63],testBit (bbs!(n+2)) i]
+        hash n = foldl1 modAdd [(pws!i)*(bbPws!n)|i<-[0..63],testBit (bbs!(n+2)) i]
 
 initStateTable :: Int -> ST s (STArray s Int (STUArray s Int Word64))
 initStateTable size
