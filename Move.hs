@@ -127,3 +127,9 @@ move (a,b) st
         (pl,sc,bb') = (place 0 a (place a' b st))
         b' = cellAt st b
         a' = cellAt st a
+
+t2 :: State
+t2 = move (13,21) t1
+
+t3 :: State
+t3 = move (26,35) t1

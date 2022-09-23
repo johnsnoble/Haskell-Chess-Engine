@@ -14,10 +14,8 @@ import Move
 -- type TransTable = STUArray s Int Int
 
 av,bv,nullv :: Int
---av = 373
---bv = 5003
-av = 2
-bv = 5
+av = 373
+bv = 5003
 nullv = 255
 
 powers :: UArray Int Int
@@ -78,50 +76,34 @@ write st n tt stt = do
     writeTT st hashed n tt
     writeSTT st hashed stt
 
-checkTable :: State -> STUArray s Int Int -> ST s (Maybe Int)
-checkTable st table
-    = do
-        let hashed = hashState st
-        val <- readArray table hashed
-        if (val == nullv)
-            then return Nothing
-            else return (Just val)
+compareState :: State -> Int -> STArray s Int (STUArray s Int BBoard) -> ST s Bool
+compareState (_,_,bbs) ind table = do
+    stbbs <- readArray table ind
+    w <- readArray stbbs 0
+    b <- readArray stbbs 1
+    b1 <- readArray stbbs 2
+    b2 <- readArray stbbs 3
+    b3 <- readArray stbbs 4
+    let bbs' = [w,b,b1,b2,b3]
+    return $ compare bbs bbs'
+    where
+        compare :: UArray Int BBoard -> [BBoard] -> Bool
+        compare a b = compare' 0 b
+            where
+                compare' :: Int -> [BBoard] -> Bool
+                compare' _ [] = True
+                compare' n (b:bs)
+                    | (a!n) /= b = False
+                    | otherwise = compare' (n+1) bs
 
-testTT :: ST s (STUArray s Int Int)
-testTT = do
-    table <- initTransTable bv
-    let ind = hashState t1
-    writeTT t1 ind 6 table
-    return table
-
-testSTT :: ST s (STArray s Int (STUArray s Int BBoard))
-testSTT = do
-    table <- initStateTable bv
-    let ind = hashState t1
-    writeSTT t1 ind table
-    return table
-
-getSTT :: Int -> ST s (STUArray s Int BBoard)
-getSTT ind = do
-    table <- testSTT
-    ret <- readArray table ind
-    return ret
-
-{-indexOf :: State -> Int
-indexOf = undefined
-
-checkTable :: StateTable -> State -> ST s Bool
-checkTable table state
-    = do
-        let ind = indexOf state
-        w <- readArray state 0
-        b <- readArray state 1
-        b1 <- readArray state 2
-        b2 <- readArray state 3
-        b3 <- readArray state 4-}
-emptys :: Int -> ST s (STUArray s Int Word64)
-emptys size
-    = do
-        arr <- newArray (0,size-1) 0
-        return arr
-
+see :: State -> STUArray s Int Int -> STArray s Int (STUArray s Int BBoard) -> ST s (Maybe Int)
+see st tt stt = do
+    let hashed = hashState st
+    val <- readArray tt hashed
+    if val == nullv
+        then return Nothing
+        else do
+            found <- compareState st hashed stt
+            if found
+                then return (Just val)
+                else return Nothing
