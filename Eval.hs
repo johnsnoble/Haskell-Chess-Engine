@@ -3,9 +3,11 @@ module Eval where
 import Board
 import Move
 import Global
+import Table
 
 import Data.Array.Base
 import Data.Array.ST
+import Data.Maybe
 import Control.Monad
 import Control.Monad.ST
 
@@ -72,6 +74,31 @@ alphabeta st@(_,sc,_) d (a,b)
             where
                 res = - alphabeta (move m st) (d-1) (-b,-x)
                 x' = max x res
+
+stEval :: Int -> State -> (Int,Move)
+stEval d st = runST $ do
+    let ms = getMoves st
+    tt <- initTransTable bv
+    stt <- initStateTable bv
+    let l = length ms
+    if l == 0
+        then return (0,(0,0))
+        else f ms (-160,(0,0)) tt stt
+    where
+        f :: [Move] -> (Int,Move) -> STUArray s Int Int -> STArray s Int (STUArray s Int BBoard) -> ST s (Int,Move)
+        f [] x _ _ = return x
+        f (m:ms) x tt stt = do
+            res <- stEval' (move m st) (d-1) (-160,-(fst x)) tt stt
+            if (-res > (fst x))
+                then f ms (-res,m) tt stt
+                else f ms x tt stt
+
+stEval' :: State -> Int -> Window -> STUArray s Int Int -> STArray s Int (STUArray s Int BBoard) -> ST s Int
+stEval' st d (a,b) tt stt= do
+    found <- see st tt stt
+    if (found == Nothing)
+        then return $ alphabeta st d (a,b)
+        else return $ fromJust found
 
 better :: (Int,a) -> (Int,a) -> (Int,a)
 better p@(p',_) q@(q',_)
