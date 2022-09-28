@@ -45,7 +45,7 @@ eval d st@(_,sc,_)
 
 bestMove :: Int -> State -> (Int,Move)
 bestMove d st
-    | d == 0 = []
+    | d == 0 = nullRes
     | otherwise = foldl better nullRes children
     where
         ms = getMoves st
