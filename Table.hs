@@ -48,10 +48,7 @@ initStateTable size = do
     return table
 
 initTransTable :: Int -> ST s (STUArray s Int Int)
-initTransTable size
-    = do
-        arr <- newArray (0,size-1) nullv
-        return arr
+initTransTable size = newArray (0,size-1) nullv >>= \arr -> return arr
 
 writeTT :: Int -> Int -> STUArray s Int Int -> ST s ()
 writeTT ind n table = writeArray table ind n
@@ -60,8 +57,7 @@ writeSTT :: State -> Int -> STArray s Int (STUArray s Int BBoard) -> ST s ()
 writeSTT (_,_,bbs) ind table
     = do
         bbPtr <- readArray table ind
-        forM_ [0..4] $ \i -> do
-            writeArray bbPtr i (bbs!i)
+        forM_ [0..4] $ \i -> writeArray bbPtr i (bbs!i)
 
 write :: State -> Int -> STUArray s Int Int -> STArray s Int (STUArray s Int BBoard) -> ST s ()
 write st n tt stt = do
@@ -106,12 +102,10 @@ add1 = do
     tt <- initTransTable bv
     stt <- initStateTable bv
     write t1 3 tt stt
-    return $ (tt,stt)
+    return (tt,stt)
 
 add2 :: STUArray s Int Int -> STArray s Int (STUArray s Int BBoard) -> ST s (STUArray s Int Int,STArray s Int (STUArray s Int BBoard))
-add2 tt stt = do
-    write emptyState 6 tt stt
-    return (tt,stt)
+add2 tt stt = write emptyState 6 tt stt >> return (tt,stt)
 
 add3 :: ST s (Maybe Int)
 add3 = do
