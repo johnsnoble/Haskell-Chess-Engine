@@ -7,6 +7,8 @@ import Data.Array.Unboxed
 import Data.Bits
 
 type Move = (Pos,Pos)
+nullMove :: Move
+nullMove = (0,0)
 
 norms,diags,kqs,horses :: UArray Int Direction
 norms = listArray (0,3) [-8,-1,1,8]

@@ -13,6 +13,12 @@ import Control.Monad.ST
 
 type Window = (Int,Int)
 
+nullRes :: (Int,Move)
+nullRes = (-160,nullMove)
+
+w0 :: Window
+w0 = (-160,160)
+
 getMoves :: State -> [Move]
 getMoves state = concat ms
     where
@@ -37,17 +43,17 @@ eval d st@(_,sc,_)
         ms = getMoves st
         children = [eval (d-1) (move m st)|m<-ms]
 
-bestMs :: Int -> State -> [(Int,Move)]
-bestMs d st
+bestMove :: Int -> State -> (Int,Move)
+bestMove d st
     | d == 0 = []
-    | otherwise = children
+    | otherwise = foldl better nullRes children
     where
         ms = getMoves st
-        children = [(- alphabeta (move m st) (d-1) (-160,160),m)|m<-ms]
+        children = [(- alphabeta (move m st) (d-1) w0,m)|m<-ms]
 
 ab :: Int -> State -> (Int,Move)
 ab d st
-    = f ms (-160,(0,0))
+    = f ms nullRes
     where
         ms = getMoves st
         f :: [Move] -> (Int,Move) -> (Int,Move)
@@ -83,7 +89,7 @@ stEval d st = runST $ do
     let l = length ms
     if l == 0
         then return (0,(0,0))
-        else f ms (-160,(0,0)) tt stt
+        else f ms nullRes tt stt
     where
         f :: [Move] -> (Int,Move) -> STUArray s Int Int -> STArray s Int (STUArray s Int BBoard) -> ST s (Int,Move)
         f [] x _ _ = return x
@@ -92,13 +98,6 @@ stEval d st = runST $ do
             if (-res > (fst x))
                 then f ms (-res,m) tt stt
                 else f ms x tt stt
-
-stEval' :: State -> Int -> Window -> STUArray s Int Int -> STArray s Int (STUArray s Int BBoard) -> ST s Int
-stEval' st d (a,b) tt stt = do
-    found <- see st tt stt
-    if (found == Nothing)
-        then return $ alphabeta st d (a,b)
-        else return $ fromJust found
 
 stEvalAB :: State -> Int -> Window -> STUArray s Int Int -> STArray s Int (STUArray s Int BBoard) -> ST s Int
 stEvalAB st@(_,sc,_) d (a,b) tt stt
