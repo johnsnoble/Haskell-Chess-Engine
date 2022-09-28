@@ -62,6 +62,9 @@ setScore n (pl,sc,bb) = (pl,n,bb)
 player :: State -> Player
 player (x,_,_) = x
 
+skipTurn :: State -> State
+skipTurn (x,sc,bb) = (other x,sc,bb)
+
 checkWinner :: State -> Bool
 checkWinner st = abs (score st) > 50
 
@@ -176,6 +179,10 @@ newGame = (L,0, listArray (0,4) [
     0xB5000000000000B5, --B,R,Q
     0xDB000000000000DB, --H,K,R,Q
     0x3CFF00000000FF3C ])--P,K,B,Q
+
+
+t0 :: State
+t0 = skipTurn $ create (zip [26,18,18,18,18,29,17,25,30,17,17,17,13,21,13] [57,55,50,40,41,28,27,26,16,15,14,13,7,5,2])
 
 t1 :: State
 t1 = create $ zip [26,18,18,18,18,29,17,25,30,17,17,17,13,21,13] [57,55,50,40,33,28,27,26,16,15,14,13,7,5,2]
