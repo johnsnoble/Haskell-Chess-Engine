@@ -42,9 +42,7 @@ hashState st = foldl modAdd 0 [hash i|i<-[0..2]]
 initStateTable :: Int -> ST s (STArray s Int (STUArray s Int BBoard))
 initStateTable size = do
     table <- newArray_ (0,size-1)
-    forM_ [0..size-1] $ \i -> do
-        state <- newArray (0,4) 0
-        writeArray table i state
+    forM_ [0..size-1] $ \i -> (newArray (0,4) 0 >>= \st -> writeArray table i st)
     return table
 
 initTransTable :: Int -> ST s (STUArray s Int Int)
