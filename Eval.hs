@@ -88,17 +88,39 @@ stEval d st = runST $ do
         f :: [Move] -> (Int,Move) -> STUArray s Int Int -> STArray s Int (STUArray s Int BBoard) -> ST s (Int,Move)
         f [] x _ _ = return x
         f (m:ms) x tt stt = do
-            res <- stEval' (move m st) (d-1) (-160,-(fst x)) tt stt
+            res <- stEvalAB (move m st) (d-1) (-160,-(fst x)) tt stt
             if (-res > (fst x))
                 then f ms (-res,m) tt stt
                 else f ms x tt stt
 
 stEval' :: State -> Int -> Window -> STUArray s Int Int -> STArray s Int (STUArray s Int BBoard) -> ST s Int
-stEval' st d (a,b) tt stt= do
+stEval' st d (a,b) tt stt = do
     found <- see st tt stt
     if (found == Nothing)
         then return $ alphabeta st d (a,b)
         else return $ fromJust found
+
+stEvalAB :: State -> Int -> Window -> STUArray s Int Int -> STArray s Int (STUArray s Int BBoard) -> ST s Int
+stEvalAB st@(_,sc,_) d (a,b) tt stt
+    | d == 0 = return sc
+    | checkWinner st = return sc
+    | ms == [] = return 0
+    | otherwise = do
+        found <- see st tt stt
+        if (found == Nothing)
+            then ab' ms a tt stt
+            else returnVal (fromJust found) tt stt
+    where
+        returnVal :: Int -> STUArray s Int Int -> STArray s Int (STUArray s Int BBoard) -> ST s Int
+        returnVal x tt stt = write st x tt stt >> return x
+        ms = getMoves st
+        ab' :: [Move] -> Int -> STUArray s Int Int -> STArray s Int (STUArray s Int BBoard) -> ST s Int
+        ab' [] x tt stt = returnVal x tt stt
+        ab' (m:ms) x tt stt = do
+            res <- stEvalAB (move m st) (d-1) (-b,-x) tt stt
+            if (-res > b)
+                then returnVal (-res) tt stt
+                else ab' ms (max x (-res)) tt stt
 
 better :: (Int,a) -> (Int,a) -> (Int,a)
 better p@(p',_) q@(q',_)
